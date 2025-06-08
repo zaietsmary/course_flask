@@ -5,7 +5,7 @@ from typing import Union
 from settings import settings
 from database import init_db
 from models.sqlalchemy.models import Animal
-
+import requests
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = settings.sqlalchemy_database_uri
 
@@ -29,7 +29,9 @@ def add_animal() -> tuple[Response, int]:
     new_animal = Animal(
         animal_type=data.animal_type,
         name=data.name,
-        birth_date=data.birth_date
+        birth_date=data.birth_date,
+        breed=data.breed,
+        photo_url=data.photo_url
     )
     db.session.add(new_animal)
     db.session.commit()
@@ -51,6 +53,8 @@ def update_animal(pk: int) -> Union[Response, tuple[Response, int]]:
     animal.animal_type = data.animal_type
     animal.name = data.name
     animal.birth_date = data.birth_date
+    animal.breed = data.breed
+    animal.photo_url = data.photo_url
     db.session.commit()
     return jsonify(
         {
@@ -72,6 +76,23 @@ def retrieve_animal(pk: int) -> Union[Response, tuple[Response, int]]:
         }
     )
 
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({"status": "ok"}), 200
+
+def get_dog_photo_url(breed: str) -> str:
+    response = requests.get(f"https://dog.ceo/api/breed/{breed}/images/random")
+    if response.status_code == 200:
+        return response.json().get('message')
+    return ""
+
+def get_cat_photo_url() -> str:
+    response = requests.get("https://api.thecatapi.com/v1/images/search")
+    if response.status_code == 200:
+        data = response.json()
+        if data and isinstance(data, list):
+            return data[0].get('url', "")
+    return ""
 
 @app.route('/animal/<int:pk>', methods=['DELETE'])
 def delete_animal(pk: int) -> Union[Response, tuple[Response, int]]:
